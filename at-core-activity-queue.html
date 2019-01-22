@@ -1,0 +1,308 @@
+<link rel="import" href="../tangere/tangere.html" />
+<link rel="import" href="../at-core-activity/at-core-activity.html">
+
+<dom-module id="at-core-activity-queue">
+  <template>
+    <style>
+      :host {
+        display: block;
+        box-sizing: border-box;
+      }
+    </style>
+    <h3>at-core-activity-queue requirements:</h3>
+    <h4>The component must</h4>
+    <ul>
+      <li>Queue an unlimited number of requests</li>
+      <li>Handle unnamed requests – an unnamed request will never be automatically canceled e.g. it must be possible to send multiple POST requests to the same endpoint e.g. for logging</li>
+      <li>Handle named requests – if we have a request name and a new request with the same name is queued the previous one must be canceled (e.g. if we POST multiple times settings for card4711 then the last request should automatically cancel all pending)</li>
+      <li>Handle errors by showing error messages – so it must be a regular Polymer component, probably error handling should remain in the inner activity component</li>
+    </ul>
+
+    activity-queue can queue unlimited number of requests
+    When should the requests be sent?
+    a) immediately after they are queued (this is current behavior because I had to implement something)
+    b) at the later time, by calling a flushQueue function (this behavior may be beneficial but there is not enough information to decide right now)
+
+    How should activity-queue notify other elements that a request has been completed either with response or error?
+    a) by using events (this is current behavior because I had to implement something)
+    b) by returning the coreActivity itself so that caller can attach to the coreActivity events himself (this behavior can be implemented but it kind of defeats the existense of activity-queue)
+
+    How should activity-queue display error messages?
+    I have not implemented any behavior yet.
+    Since activity-queue handles lots of requests 
+    a) activity-queue can maintain an array of error messages where each message can be dismissed individually 
+    b) activity-queue can append at-core-activity which resulted in an error to itself to display the error message. When dismissed, core-activity can be removed from activity-queue
+
+    Default request options and request specific options
+    activity-queue can have some of the properties core-activity has. These properties will act as default values for each core-activity element queued
+    sendNamedRequest and sendUnnamedRequest functions have options parameter which can be used to set non-default values for core-activity properties
+
+  </template>
+</dom-module>
+<script>
+  Polymer({
+    is: "at-core-activity-queue",
+    properties: {
+
+
+      /**
+       * Default params that will be sent with each request. Can be overridden by supplying params via options
+       *
+       * @attribute params
+       * @type Object
+       * @default {}
+       */
+      params: {
+        type: Object,
+        value: function() {
+          return {};
+        }
+      },
+
+      /**
+       * Default HTTP method to use with each request
+       * Default is 'GET'.
+       *
+       * @attribute method
+       * @type string
+       * @default 'GET'
+       */
+      method: {
+        type: String,
+        value: 'GET'
+      },
+
+      /**
+       * Default HTTP request headers to send with each request.
+       *
+       * @attribute headers
+       * @type Object
+       * @default {}
+       */
+      headers: {
+        type: Object,
+        value: function() {
+          return {};
+        }
+      },
+
+      /**
+       * Default Content type to use with each request.
+       *
+       * @attribute contentType
+       * @type string
+       * @default 'application/x-www-form-urlencoded'
+       */
+      contentType: {
+        type: String,
+        value: 'application/x-www-form-urlencoded'
+      },
+
+      /**
+       * Default response handling to use with each response. 
+       *
+       * @attribute handleAs
+       * @type string
+       * @default 'json'
+       */
+      handleAs: {
+        type: String,
+        value: 'json'
+      },
+
+      /**
+       * Default withCredentials flag value to send with each request.
+       *
+       * @attribute withCredentials
+       * @type boolean
+       * @default false
+       */
+      withCredentials: {
+        type: Boolean,
+        value: false
+      },
+
+      /**
+       * If true, error messages will automatically be logged to the console.
+       *
+       * @attribute verbose
+       * @type boolean
+       * @default false
+       */
+      verbose: {
+        type: Boolean,
+        value: false
+      },
+
+      /**
+       * When set to true and error is received from remote data source, container element will receive both error event and response event. Container should use error event to process the error message and response event to process the response
+       *
+       * @property disableErrorCodeHandler
+       * @type Boolean
+       * @default false
+       */
+      disableErrorCodeHandler: {
+        type: Boolean,
+        value: false
+      }
+
+    },
+
+    created: function() {
+      if (this._unnamedRequestQueue == undefined) {
+        this._unnamedRequestQueue = [];
+      }
+
+      if (this._namedRequestQueue == undefined) {
+        this._namedRequestQueue = [];
+      }
+
+      if (this._defaultPropretyNames == undefined) {
+        this._defaultPropretyNames = Object.keys(this.properties);
+      }
+    },
+
+    ready: function() {
+    },
+
+    getNamedRequest(name) {
+      return this._namedRequestQueue[name];
+    },
+
+    sendUnnamedRequest(url, options) {
+      if (!url) return;
+
+      if (!options) options = {};
+
+      var coreActivity = this.create('at-core-activity');
+      coreActivity.url = url;
+
+      Polymer.dom(this.root).appendChild(coreActivity);
+      Polymer.dom(this.root).removeChild(coreActivity);
+
+      this._assignPropertiesFromOptionsOrDefault(coreActivity, options);
+
+      this._unnamedRequestQueue.push(coreActivity);
+
+      this._setupEventListeners(coreActivity);
+    },
+
+
+    sendNamedRequest: function(url, name, options) {
+      if (!url) return;
+      if (!name) return;
+
+      if (!options) options = {};
+
+      var existing = this.getNamedRequest(name);
+      if (existing != null) {
+        existing.activeRequests[0].abort();
+      }
+
+      var coreActivity = this.create('at-core-activity');
+      coreActivity.setAttribute('queueid', name);
+      coreActivity.url = url;
+
+      Polymer.dom(this.root).appendChild(coreActivity);
+      Polymer.dom(this.root).removeChild(coreActivity);
+
+      this._assignPropertiesFromOptionsOrDefault(coreActivity, options);
+
+      this._namedRequestQueue[name] = coreActivity;
+
+      this._setupEventListeners(coreActivity);
+
+      coreActivity.generateRequest();
+    },
+
+    _assignPropName: function(coreActivity, propName, optionsPropNames, options) {
+      var idx = optionsPropNames.indexOf(propName);
+      if (idx == -1) {
+        // use default
+        coreActivity[propName] = this[propName];
+        return;
+      }
+
+      // use options
+      coreActivity[propName] = options[propName];
+      optionsPropNames.splice(idx, 1);
+    },
+
+    _assignPropertiesFromOptionsOrDefault: function(coreActivity, options) {
+      // 
+      // assign properties from options or default
+      // 
+      var optionsPropNames = Object.keys(options);
+      var self = this;
+      this._defaultPropretyNames.forEach(function(defPropName) {
+        self._assignPropName(coreActivity, defPropName, optionsPropNames, options);
+      });
+
+      optionsPropNames.forEach(function(propName) {
+        coreActivity[propName] = options[propName];
+      });
+    },
+
+    _setupEventListeners: function(coreActivity) {
+      var self = this;
+
+      coreActivity.addEventListener('response', function(response) {
+        var queueid = coreActivity.getAttribute('queueid');
+        var detail;
+
+        if (queueid == null) {
+          detail = {
+            activity: coreActivity,
+            response: response.detail
+          };
+
+        } else {
+          detail = {
+            name: queueid,
+            activity: self._namedRequestQueue[queueid],
+            response: response.detail
+          };
+        }
+
+        // 
+        // TODO(ij): remove from queue
+        // 
+        // delete this._namedRequestQueue[queueid] should work for named requests
+        // delete by index should be implemented for unnamed requests
+        // 
+
+
+        self.fire('response', detail, { bubbles: false });
+      });
+
+      coreActivity.addEventListener('error', function(error) {
+        var queueid = coreActivity.getAttribute('queueid');
+        var detail;
+
+        if (queueid == null) {
+          detail = {
+            activity: coreActivity,
+            error: error.detail
+          };
+
+        } else {
+          detail = {
+            name: queueid,
+            activity: self._namedRequestQueue[queueid],
+            error: error.detail
+          };
+        }
+
+        // 
+        // TODO(ij): remove from queue
+        // 
+        // delete this._namedRequestQueue[queueid] should work for named requests
+        // delete by index should be implemented for unnamed requests
+        // 
+
+        self.fire('error', detail, { bubbles: false });
+      });
+    }
+
+  });
+</script>
