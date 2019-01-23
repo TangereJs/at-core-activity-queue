@@ -19,28 +19,33 @@
 
   <script>
     document.addEventListener('WebComponentsReady', function() {
-      var url = "http://localhost:2014/api/adenin.GateKeeper.Content1/service";
+      var url = "http://localhost:2014/api/adenin.GateKeeper.Content/service";
       var elt = document.getElementById('elt');
       var output = document.getElementById('output');
-      
 
       elt.addEventListener('response', function(event) {
         var detail = event.detail;
 
         output.textContent = JSON.stringify(detail.response, null, ' ');
       });
-
+      
       elt.addEventListener('error', function(event) {
         var detail = event.detail;
-
+        
         output.innerHTML = JSON.stringify(detail.error.message, null, ' ');
       });
 
-      elt.sendNamedRequest(url, "request1");
-      elt.sendNamedRequest(url, "request2");
-      elt.sendNamedRequest(url, "request3");
-      elt.sendNamedRequest(url, "request4");
-      elt.sendNamedRequest(url, "request5");
+      elt.addRequest({ url: url, name: "request1" });
+      elt.addRequest({ url: url, name: "request2" });
+      elt.addRequest({ url: url, name: "request3" });
+      elt.addRequest({ url: url, name: "request4" });
+      elt.addRequest({ url: url, name: "request5" });
+      
+      elt.addRequest({ url: url });
+      elt.addRequest({ url: url });
+      elt.addRequest({ url: url });
+      elt.addRequest({ url: url });
+      elt.addRequest({ url: url });
 
     });
     

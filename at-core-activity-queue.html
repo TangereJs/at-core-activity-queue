@@ -10,34 +10,6 @@
         box-sizing: border-box;
       }
     </style>
-    <h3>at-core-activity-queue requirements:</h3>
-    <h4>The component must</h4>
-    <ul>
-      <li>Queue an unlimited number of requests</li>
-      <li>Handle unnamed requests – an unnamed request will never be automatically canceled e.g. it must be possible to send multiple POST requests to the same endpoint e.g. for logging</li>
-      <li>Handle named requests – if we have a request name and a new request with the same name is queued the previous one must be canceled (e.g. if we POST multiple times settings for card4711 then the last request should automatically cancel all pending)</li>
-      <li>Handle errors by showing error messages – so it must be a regular Polymer component, probably error handling should remain in the inner activity component</li>
-    </ul>
-
-    <div>
-      <h4>How should activity-queue display error messages?</h4>
-      I have not implemented any behavior yet.
-      <p>Since activity-queue handles lots of requests</p>
-      <ul>
-        <li>a) activity-queue can maintain an array of error messages where each message can be dismissed individually</li>
-        <li>b) activity-queue can append at-core-activity which resulted in an error to itself to display the error message. When dismissed, core-activity can be removed from activity-queue</li>
-      </ul>
-    </div>
-
-    <div>
-      <h4>Default request options and request specific options</h4>
-      I have not implemented any behavior yet.
-      <p>Since activity-queue handles lots of requests</p>
-      <ul>
-        <li>activity-queue can have some of the properties core-activity has. These properties will act as default values for each core-activity element queued</li>
-        <li>sendNamedRequest and sendUnnamedRequest functions have options parameter which can be used to set non-default values for core-activity properties</li>
-      </ul>
-    </div>
 
     <at-carbon-toast id="carbonToast" duration="0"></at-carbon-toast>
   </template>
@@ -46,109 +18,6 @@
   Polymer({
     is: "at-core-activity-queue",
     properties: {
-
-
-      /**
-       * Default params that will be sent with each request. Can be overridden by supplying params via options
-       *
-       * @attribute params
-       * @type Object
-       * @default {}
-       */
-      params: {
-        type: Object,
-        value: function() {
-          return {};
-        }
-      },
-
-      /**
-       * Default HTTP method to use with each request
-       * Default is 'GET'.
-       *
-       * @attribute method
-       * @type string
-       * @default 'GET'
-       */
-      method: {
-        type: String,
-        value: 'GET'
-      },
-
-      /**
-       * Default HTTP request headers to send with each request.
-       *
-       * @attribute headers
-       * @type Object
-       * @default {}
-       */
-      headers: {
-        type: Object,
-        value: function() {
-          return {};
-        }
-      },
-
-      /**
-       * Default Content type to use with each request.
-       *
-       * @attribute contentType
-       * @type string
-       * @default 'application/x-www-form-urlencoded'
-       */
-      contentType: {
-        type: String,
-        value: 'application/x-www-form-urlencoded'
-      },
-
-      /**
-       * Default response handling to use with each response. 
-       *
-       * @attribute handleAs
-       * @type string
-       * @default 'json'
-       */
-      handleAs: {
-        type: String,
-        value: 'json'
-      },
-
-      /**
-       * Default withCredentials flag value to send with each request.
-       *
-       * @attribute withCredentials
-       * @type boolean
-       * @default false
-       */
-      withCredentials: {
-        type: Boolean,
-        value: false
-      },
-
-      /**
-       * If true, error messages will automatically be logged to the console.
-       *
-       * @attribute verbose
-       * @type boolean
-       * @default false
-       */
-      verbose: {
-        type: Boolean,
-        value: false
-      },
-
-      /**
-       * When set to true and error is received from remote data source, container element will receive both error event and response event. Container should use error event to process the error message and response event to process the response
-       *
-       * @property disableErrorCodeHandler
-       * @type Boolean
-       * @default false
-       */
-      disableErrorCodeHandler: {
-        type: Boolean,
-        value: false
-      }
-
     },
 
     created: function() {
@@ -159,101 +28,63 @@
       if (this._namedRequestQueue == undefined) {
         this._namedRequestQueue = [];
       }
-
-      if (this._defaultPropretyNames == undefined) {
-        this._defaultPropretyNames = Object.keys(this.properties);
-      }
     },
 
     ready: function() {
     },
 
-    getNamedRequest(name) {
-      return this._namedRequestQueue[name];
-    },
+    addRequest: function(options) {
+      if (!this._isObject(options)) return;
 
-    sendUnnamedRequest(url, options) {
-      if (!url) return;
-
-      if (!options) options = {};
-
-      var coreActivity = this.create('at-core-activity');
-      coreActivity.url = url;
-
-      Polymer.dom(this.root).appendChild(coreActivity);
-      Polymer.dom(this.root).removeChild(coreActivity);
-
-      this._assignPropertiesFromOptionsOrDefault(coreActivity, options);
-
-      this._unnamedRequestQueue.push(coreActivity);
-
-      this._setupEventListeners(coreActivity);
-    },
-
-
-    sendNamedRequest: function(url, name, options) {
-      if (!url) return;
-      if (!name) return;
-
-      if (!options) options = {};
-
-      var existing = this.getNamedRequest(name);
-      if (existing != null) {
-        existing.activeRequests[0].abort();
+      if (!options.url) return;
+      
+      var isNamed = !!options.name;
+      if (isNamed) {
+        var existing = this._namedRequestQueue[name];
+        if (existing != null) {
+          existing.activeRequests[0].abort();
+        }
       }
 
       var coreActivity = this.create('at-core-activity');
-      coreActivity.setAttribute('queueid', name);
-      coreActivity.url = url;
+      if (isNamed) {
+        coreActivity.setAttribute('requestName', options.name);
+      }
 
       Polymer.dom(this.root).appendChild(coreActivity);
       Polymer.dom(this.root).removeChild(coreActivity);
-
-      this._assignPropertiesFromOptionsOrDefault(coreActivity, options);
-
-      this._namedRequestQueue[name] = coreActivity;
-
-      this._setupEventListeners(coreActivity);
-
-      coreActivity.generateRequest();
-    },
-
-    _assignPropName: function(coreActivity, propName, optionsPropNames, options) {
-      var idx = optionsPropNames.indexOf(propName);
-      if (idx == -1) {
-        // use default
-        coreActivity[propName] = this[propName];
-        return;
+      
+      if (isNamed) {
+        this._namedRequestQueue[options.name] = coreActivity;
+      } else {
+        this._unnamedRequestQueue.push(coreActivity);
       }
 
-      // use options
-      coreActivity[propName] = options[propName];
-      optionsPropNames.splice(idx, 1);
-    },
-
-    _assignPropertiesFromOptionsOrDefault: function(coreActivity, options) {
-      // 
-      // assign properties from options or default
-      // 
       var optionsPropNames = Object.keys(options);
-      var self = this;
-      this._defaultPropretyNames.forEach(function(defPropName) {
-        self._assignPropName(coreActivity, defPropName, optionsPropNames, options);
-      });
+      var indexOfName = optionsPropNames.indexOf('name');
+      if (indexOfName > - 1) {
+        optionsPropNames.splice(indexOfName, 1);
+      }
 
       optionsPropNames.forEach(function(propName) {
         coreActivity[propName] = options[propName];
       });
+
+      this._setupEventListeners(coreActivity);
+      
+      coreActivity.generateRequest();
     },
+
+    _isObject: function(obj) { return Object.prototype.toString.call(obj) === "[object Object]"; },
 
     _setupEventListeners: function(coreActivity) {
       var self = this;
 
       coreActivity.addEventListener('response', function(response) {
-        var queueid = coreActivity.getAttribute('queueid');
+        var requestName = coreActivity.getAttribute('requestName');
         var detail;
 
-        if (queueid == null) {
+        if (requestName == null) {
           detail = {
             activity: coreActivity,
             response: response.detail
@@ -261,31 +92,33 @@
 
         } else {
           detail = {
-            name: queueid,
-            activity: self._namedRequestQueue[queueid],
+            name: requestName,
+            activity: self._namedRequestQueue[requestName],
             response: response.detail
           };
         }
 
-        // 
-        // TODO(ij): remove from queue
-        // 
-        // delete this._namedRequestQueue[queueid] should work for named requests
-        // delete by index should be implemented for unnamed requests
-        // 
-
+        if (requestName != null) {
+          delete self._namedRequestQueue[requestName]
+        
+        } else {
+          var actIndex = self._unnamedRequestQueue.indexOf(coreActivity);
+          if (actIndex > -1) {
+            self._unnamedRequestQueue.splice(actIndex, 1);
+          }
+        }
 
         self.fire('response', detail, { bubbles: false });
       });
 
       coreActivity.addEventListener('error', function(error) {
-        var queueid = coreActivity.getAttribute('queueid');
+        var requestName = coreActivity.getAttribute('requestName');
         var detail;
 
         self.$.carbonToast.text = error.detail;
         self.$.carbonToast.show();
 
-        if (queueid == null) {
+        if (requestName == null) {
           detail = {
             activity: coreActivity,
             error: error.detail
@@ -293,22 +126,26 @@
 
         } else {
           detail = {
-            name: queueid,
-            activity: self._namedRequestQueue[queueid],
+            name: requestName,
+            activity: self._namedRequestQueue[requestName],
             error: error.detail
           };
         }
 
-        // 
-        // TODO(ij): remove from queue
-        // 
-        // delete this._namedRequestQueue[queueid] should work for named requests
-        // delete by index should be implemented for unnamed requests
-        // 
+        if (requestName != null) {
+          delete self._namedRequestQueue[requestName]
+        
+        } else {
+          var actIndex = self._unnamedRequestQueue.indexOf(coreActivity);
+          if (actIndex > -1) {
+            self._unnamedRequestQueue.splice(actIndex, 1);
+          }
+        }
 
         self.fire('error', detail, { bubbles: false });
       });
-    }
 
+    }
+    
   });
 </script>
