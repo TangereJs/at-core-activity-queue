@@ -1,5 +1,6 @@
 <link rel="import" href="../tangere/tangere.html" />
 <link rel="import" href="../at-core-activity/at-core-activity.html">
+<link rel="import" href="../at-carbon-toast/at-carbon-toast.html">
 
 <dom-module id="at-core-activity-queue">
   <template>
@@ -18,25 +19,27 @@
       <li>Handle errors by showing error messages – so it must be a regular Polymer component, probably error handling should remain in the inner activity component</li>
     </ul>
 
-    activity-queue can queue unlimited number of requests
-    When should the requests be sent?
-    a) immediately after they are queued (this is current behavior because I had to implement something)
-    b) at the later time, by calling a flushQueue function (this behavior may be beneficial but there is not enough information to decide right now)
+    <div>
+      <h4>How should activity-queue display error messages?</h4>
+      I have not implemented any behavior yet.
+      <p>Since activity-queue handles lots of requests</p>
+      <ul>
+        <li>a) activity-queue can maintain an array of error messages where each message can be dismissed individually</li>
+        <li>b) activity-queue can append at-core-activity which resulted in an error to itself to display the error message. When dismissed, core-activity can be removed from activity-queue</li>
+      </ul>
+    </div>
 
-    How should activity-queue notify other elements that a request has been completed either with response or error?
-    a) by using events (this is current behavior because I had to implement something)
-    b) by returning the coreActivity itself so that caller can attach to the coreActivity events himself (this behavior can be implemented but it kind of defeats the existense of activity-queue)
+    <div>
+      <h4>Default request options and request specific options</h4>
+      I have not implemented any behavior yet.
+      <p>Since activity-queue handles lots of requests</p>
+      <ul>
+        <li>activity-queue can have some of the properties core-activity has. These properties will act as default values for each core-activity element queued</li>
+        <li>sendNamedRequest and sendUnnamedRequest functions have options parameter which can be used to set non-default values for core-activity properties</li>
+      </ul>
+    </div>
 
-    How should activity-queue display error messages?
-    I have not implemented any behavior yet.
-    Since activity-queue handles lots of requests 
-    a) activity-queue can maintain an array of error messages where each message can be dismissed individually 
-    b) activity-queue can append at-core-activity which resulted in an error to itself to display the error message. When dismissed, core-activity can be removed from activity-queue
-
-    Default request options and request specific options
-    activity-queue can have some of the properties core-activity has. These properties will act as default values for each core-activity element queued
-    sendNamedRequest and sendUnnamedRequest functions have options parameter which can be used to set non-default values for core-activity properties
-
+    <at-carbon-toast id="carbonToast" duration="0"></at-carbon-toast>
   </template>
 </dom-module>
 <script>
@@ -278,6 +281,9 @@
       coreActivity.addEventListener('error', function(error) {
         var queueid = coreActivity.getAttribute('queueid');
         var detail;
+
+        self.$.carbonToast.text = error.detail;
+        self.$.carbonToast.show();
 
         if (queueid == null) {
           detail = {
