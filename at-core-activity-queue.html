@@ -40,7 +40,7 @@
       
       var isNamed = !!options.name;
       if (isNamed) {
-        var existing = this._namedRequestQueue[name];
+        var existing = this._namedRequestQueue[options.name];
         if (existing != null) {
           existing.activeRequests[0].abort();
         }
