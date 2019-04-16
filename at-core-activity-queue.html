@@ -18,6 +18,18 @@
   Polymer({
     is: "at-core-activity-queue",
     properties: {
+      /**
+       * When true, the line activity indicator should show
+       * as long as the queue is not empty.
+       *
+       * @attribute indicator
+       * @type boolean
+       * @default false
+       */
+      indicator: {
+        type: Boolean,
+        value: false
+      }
     },
 
     created: function() {
@@ -108,7 +120,9 @@
           }
         }
 
-        self.fire('response', detail, { bubbles: false });
+        if (self._unnamedRequestQueue.length === 0) {
+          self.fire('response', detail, { bubbles: false });
+        }
       });
 
       coreActivity.addEventListener('error', function(error) {
