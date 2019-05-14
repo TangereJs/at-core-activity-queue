@@ -129,7 +129,18 @@
         var requestName = coreActivity.getAttribute('requestName');
         var detail;
 
-        self.$.carbonToast.text = error.detail;
+        if (error.detail.response.Data.ErrorText == null && error.detail.message == null) {
+          // If both ErrorText and message can't be found -> show "Unknown Error"
+          self.$.carbonToast.text = "Unknown Error";
+        } else if (error.detail.response.Data.ErrorText != null) {
+          // If ErrorText is available and statusCode = 0 -> show "Server did not respond"
+          // If ErrorText is available and statusCode != 0 -> show "Server Error XXX" 
+          self.$.carbonToast.text = error.detail.response.Data.ErrorText;
+        } else if (error.detail.message != null) {
+          // If only a message is available -> show message text
+          self.$.carbonToast.text = error.detail.message;
+        }
+
         self.$.carbonToast.show();
 
         if (requestName == null) {
