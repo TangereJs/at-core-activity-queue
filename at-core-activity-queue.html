@@ -129,7 +129,20 @@
         var requestName = coreActivity.getAttribute('requestName');
         var detail;
 
-        self.$.carbonToast.text = error.detail;
+        if(error.detail.response.ErrorCode == 0) {
+          // Show "Server did not respond" error when there is no response and error code is not received
+          self.$.carbonToast.text = error.detail.message;
+        }
+
+        if(error.detail.response.ErrorCode == 599 && error.detail.response.Data.HttpCode != null) {
+          // When no ErrorCode is received, but an http status code -> show "Server Error XXX"
+          self.$.carbonToast.text = "Server Error " + error.detail.response.Data.HttpCode;
+        }
+
+        if(error.detail.response.ErrorCode != 0 && error.detail.response.ErrorCode != 599) {
+          self.$.carbonToast.text = error.detail;
+        }
+
         self.$.carbonToast.show();
 
         if (requestName == null) {
