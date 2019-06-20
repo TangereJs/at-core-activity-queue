@@ -51,6 +51,8 @@
       if (!options.url) return;
       
       var isNamed = !!options.name;
+
+      // named requests are atomic - so an already running request with the same name will be canceled
       if (isNamed) {
         var existing = this._namedRequestQueue[options.name];
         if (existing != null) {
@@ -120,9 +122,13 @@
           }
         }
 
-        if (self._unnamedRequestQueue.length === 0) {
-          self.fire('response', detail, { bubbles: false });
-        }
+        self.fire('response', detail, { bubbles: false });
+
+        // Why is this code commented out? Firing event only when queue is empty seems to be wrong
+        //if (self._unnamedRequestQueue.length === 0) {
+        //  self.fire('response', detail, { bubbles: false });
+        //}
+        
       });
 
       coreActivity.addEventListener('error', function(error) {
