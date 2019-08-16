@@ -52,6 +52,10 @@
       
       var isNamed = !!options.name;
 
+      if (options.disableErrorCodeHandler == true) {
+        this._disableErrorCodeHandler = true;
+      }
+
       // named requests are atomic - so an already running request with the same name will be canceled
       if (isNamed) {
         var existing = this._namedRequestQueue[options.name];
@@ -147,7 +151,9 @@
           self.$.carbonToast.text = error.detail.message;
         }
 
-        self.$.carbonToast.show();
+        if (self._disableErrorCodeHandler != true) {
+          self.$.carbonToast.show();
+        }
 
         if (requestName == null) {
           detail = {
