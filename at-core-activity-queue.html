@@ -1,6 +1,5 @@
 <link rel="import" href="../tangere/tangere.html" />
 <link rel="import" href="../at-core-activity/at-core-activity.html">
-<link rel="import" href="../at-carbon-toast/at-carbon-toast.html">
 
 <dom-module id="at-core-activity-queue">
   <template>
@@ -11,7 +10,6 @@
       }
     </style>
 
-    <at-carbon-toast id="carbonToast" duration="30000"></at-carbon-toast>
   </template>
 </dom-module>
 <script>
@@ -89,7 +87,7 @@
       });
 
       this._setupEventListeners(coreActivity);
-      
+
       coreActivity.generateRequest();
     },
 
@@ -132,27 +130,30 @@
         //if (self._unnamedRequestQueue.length === 0) {
         //  self.fire('response', detail, { bubbles: false });
         //}
-        
+
       });
 
       coreActivity.addEventListener('error', function(error) {
         var requestName = coreActivity.getAttribute('requestName');
         var detail;
+        var msg = "";
 
         if (error.detail.response.Data.ErrorText == null && error.detail.message == null) {
           // If both ErrorText and message can't be found -> show "Unknown Error"
-          self.$.carbonToast.text = "Unknown Error";
+          msg = "Unknown Error";
         } else if (error.detail.response.Data.ErrorText != null) {
           // If ErrorText is available and statusCode = 0 -> show "Server did not respond"
           // If ErrorText is available and statusCode != 0 -> show "Server Error XXX" 
-          self.$.carbonToast.text = error.detail.response.Data.ErrorText;
+          msg = error.detail.response.Data.ErrorText;
         } else if (error.detail.message != null) {
           // If only a message is available -> show message text
-          self.$.carbonToast.text = error.detail.message;
+         msg = error.detail.message;
         }
 
-        if (self._disableErrorCodeHandler != true) {
-          self.$.carbonToast.show();
+        if (self._disableErrorCodeHandler != true && msg) {
+          Polymer.signal('sys-error', {
+            message: msg
+          });
         }
 
         if (requestName == null) {
@@ -186,3 +187,4 @@
     
   });
 </script>
+
