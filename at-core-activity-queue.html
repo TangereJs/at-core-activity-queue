@@ -152,22 +152,26 @@
 
         if (self._disableErrorCodeHandler != true && msg) {
           Polymer.signal('sys-error', {
-            message: msg
+            message: msg,
+            details: error.detail.response.Data.ErrorDetails ? error.detail.response.Data.ErrorDetails : null
           });
         }
 
-        if (requestName == null) {
-          detail = {
-            activity: coreActivity,
-            error: error.detail
-          };
+        detail = {
+          error: error.detail, // legacy, should not be used
+          response: {
+            Data: error.detail.response.Data,
+            ErrorCode: error.detail.response.ErrorCode,
+            Id: error.detail.response.Id,
+            handler: error.detail.handler
+          }
+        }
 
+        if (requestName == null) {
+          detail.activity = coreActivity;
         } else {
-          detail = {
-            name: requestName,
-            activity: self._namedRequestQueue[requestName],
-            error: error.detail
-          };
+          detail.name = requestName;
+          detail.activity = self._namedRequestQueue[requestName];
         }
 
         if (requestName != null) {
