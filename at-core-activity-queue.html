@@ -151,10 +151,17 @@
         }
 
         if (self._disableErrorCodeHandler != true && msg) {
-          Polymer.signal('sys-error', {
-            message: msg,
-            details: error.detail.response.Data.ErrorDetails ? error.detail.response.Data.ErrorDetails : null
-          });
+          if (this.url.endsWith("/refresh")) {
+            // *todo* define how requests can be defined with "ignore error" ?
+            // for now calls from cards to /refresh data should fail silently
+            console.error(msg);
+            error.detail.handler.handled = true;
+          } else {
+            Polymer.signal('sys-error', {
+              message: msg,
+              details: error.detail.response.Data.ErrorDetails ? error.detail.response.Data.ErrorDetails : null
+            });
+          }
         }
 
         detail = {
